@@ -389,6 +389,8 @@ namespace uav_controller
 				cv::aruco::estimatePoseSingleMarkers(corners, 0.3, cameraMatrix, distCoeffs, rvec, tvec);
 				
 				double roll = rvec.at<double>(0);
+				double pitch = rvec.at<double>(1);
+				double yaw = rvec.at<double>(2);
 				
 				std::cout << roll << std::endl;
 
