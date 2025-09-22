@@ -13,13 +13,15 @@
 #include <opencv2/aruco.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include "fiducial_navigation.hpp"
+#include "cam_reader.hpp"
+#include "image_getter.hpp"
 
 
 namespace uav_controller
 {
 
 	UavController::UavController(ros::NodeHandle &n, const std::string &uavName)
-		: n_(n), uavName_(uavName)
+		: n_(n), uavName_(uavName), camReader(n), marker(n)
 	{
 		rosNodeInit();
 	}
@@ -52,7 +54,7 @@ namespace uav_controller
 		stateSub_ = n_.subscribe<mavros_msgs::State>("/mavros/state", 10, &UavController::uavStateCallback, this);
 		
 		// Инициализация подписки на топик желаемого положения ЛА
-		cameraInfo_ = n_.subscribe<sensor_msgs::CameraInfo>("/iris/camera1/camera_info", 1, &UavController::cameraInfoCallback, this);
+		//cameraInfo_ = n_.subscribe<sensor_msgs::CameraInfo>("/iris/camera1/camera_info", 1, &UavController::cameraInfoCallback, this);
 
         // Инициализация подписки на топик камеры ЛА
 		cameraSub_ = n_.subscribe<sensor_msgs::Image>("/iris/camera1/image_raw", 1, &UavController::imageCallback, this);
@@ -76,8 +78,8 @@ namespace uav_controller
         {
             cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
             // Обработка изображения
-            cv::imshow("Image Window", cv_ptr->image);
-            cv::waitKey(3);
+            //cv::imshow("Image Window", cv_ptr->image);
+            //cv::waitKey(3);
 			// преобразование изображения из формата ROS в формат OpenCV.
 			cv_image = cv_bridge::toCvCopy(msg, "bgr8")->image;
         }
@@ -93,7 +95,7 @@ namespace uav_controller
         currentPoseLocal_ = *currentPoseLocal;
 	}
 
-	void UavController::cameraInfoCallback(const sensor_msgs::CameraInfo::ConstPtr& msg)
+	/*void UavController::cameraInfoCallback(const sensor_msgs::CameraInfo::ConstPtr& msg)
 	{
 		// Сохранение матрицы калибровки
 		cameraMatrix = cv::Mat(3, 3, CV_64F);
@@ -113,7 +115,7 @@ namespace uav_controller
         distCoeffs = msg->D;
 
 
-	}
+	}*/
 
 	// метод для установки ограничений значений в пределах заданного диапазона.
 	double clip(double value, double min_val, double max_val)
@@ -370,47 +372,117 @@ namespace uav_controller
 	// обраьотка маркеров
 	void UavController::markers_w()
 	{
+        //Получим данные из словаря
+		Markers_dict = marker.getMarkerMatrix();
+        //Проверим работоспособность 
+		//std::cout << Markers_dict[1] << std::endl;
 		// Обнуляем векторы перед новым поиском
-        ids.clear();
-        corners.clear();
-
-		try
+		ids.clear();
+		corners.clear();
+		//CamReader cam(n_);
+	
+		cv::Mat cameraMatrix = camReader.get_cameraMatrix();
+		/*
+		if (cameraMatrix.empty())
 		{
-			// Обнаружение маркеров
-			cv::aruco::detectMarkers(cv_image, dictionary, corners, ids);
-			
-			// Обработка найденных маркеров
-			if (!ids.empty())
+			std::cout << "fhgdhgdhgdgdghgdh" << std::endl;
+		}
+		else{
+		    std::cout << "working" << std::endl;
+      	}*/
+	    //Получение параметров камеры
+		distCoeffs = camReader.get_distCoeff();
+		if (!cameraMatrix.empty())
+        {
+            ROS_INFO("Camera matrix received:");
+            std::cout << cameraMatrix << std::endl;
+            std::cout << distCoeffs.at(0) << std::endl;
+            std::cout << distCoeffs.at(1) << std::endl;
+            //ROS_INFO("%s", matrix.dump().c_str());
+        }
+
+		if (!cameraMatrix.empty() && !distCoeffs.empty())
+		{
+			try
 			{
-				ROS_INFO("Found %d markers", ids.size());
-				int marker_id = ids[0];
-				cv::Mat rvec, tvec;
+				// Создаем окно для отображения
+				//cv::namedWindow("Image Window", cv::WINDOW_NORMAL);
 
-				cv::aruco::estimatePoseSingleMarkers(corners, 0.3, cameraMatrix, distCoeffs, rvec, tvec);
-				
-				double roll = rvec.at<double>(0);
-				double pitch = rvec.at<double>(1);
-				double yaw = rvec.at<double>(2);
-				
-				std::cout << roll << std::endl;
+                // Параметры для вывода текста
+                
+                int fontFace = cv::FONT_HERSHEY_SIMPLEX;
+                double fontScale = 0.4;
+                cv::Scalar color = cv::Scalar(0, 0, 255);
+                int thickness = 1;
 
-				// Преобразование rvec в матрицу вращения
-                cv::Mat rotation_matrix;
+				// Обнаружение маркеров
+				cv::aruco::detectMarkers(cv_image, dictionary, corners, ids);
 
-                //cv::Rodrigues(rvec, rotation_matrix);
+				// Обработка найденных маркеров
+				if (!ids.empty())
+				{
+					ROS_INFO("Found %d markers", ids.size());
+					
+			//		int marker_id = ids[0];
+					cv::Mat rvec, tvec;
 
-				// cam_Info.
-				//  Здесь можно добавить обработку координат маркеров
+					for (size_t i = 0; i < ids.size(); ++i)
+					{
+						// Обработка изображения
+
+						std::vector<cv::Point3f> result = Markers_dict[ids.at(i)];
+						// Форматируем координаты в строку
+                        std::stringstream ss;
+                        ss << "X: " << result.at(0).x << ", Y: " << result.at(0).y;
+                        std::string text = ss.str();
+						cv::circle(cv_image,corners[i].at(0), 5, cv::Scalar(0, 0, 255), 2);
+						cv::Point textOrg(corners[i].at(0).x + 10, corners[i].at(0).y + 10);
+						cv::putText(cv_image, text, textOrg, fontFace, fontScale, color, thickness, cv::LINE_AA);
+
+					}
+					if (cv_image.empty())
+					{
+						std::cout << "empty image!!!" << std::endl;
+					}
+					else
+					{
+						std::cout << "image is ok" << std::endl;
+					}
+
+					// Отображаем изображение
+					cv::imshow("Image Window", cv_image);
+
+					// Добавляем задержку для корректного отображения
+					cv::waitKey(3); // Увеличиваем время ожидания*/
+
+			//	cv::aruco::estimatePoseSingleMarkers(corners, 0.3, cameraMatrix, distCoeffs, rvec, tvec);
+
+				//	double roll = rvec.at<double>(0);
+				//	double pitch = rvec.at<double>(1);
+			//		double yaw = rvec.at<double>(2);
+
+				//	std::cout << roll << std::endl;
+
+					// Преобразование rvec в матрицу вращения
+					// cv::Mat rotation_matrix;
+
+					// cv::Rodrigues(rvec, rotation_matrix);
+
+					// cam_Info.
+					//  Здесь можно добавить обработку координат маркеров
+
+				}
+				else
+				{
+					std::cout << "i can't see!!!!" << std::endl;
+				}
 			}
-			else
+			catch (cv_bridge::Exception &e)
 			{
-				std::cout << "i can't see!!!!" << std::endl;
+				ROS_ERROR("Ошибка конвертации: %s", e.what());
 			}
 		}
-		catch (cv_bridge::Exception &e)
-		{
-			ROS_ERROR("Ошибка конвертации: %s", e.what());
-		}
+		
 	}
 
 	// Активация автоматического режима полета

@@ -32,6 +32,8 @@ include_directories(
 add_library(control_sys_libs STATIC src/flight_controller.cpp)
 add_library(transform STATIC src/transform.cpp)
 add_library(tech_vis STATIC src/fiducial_navigation.cpp)
+add_library(cam_params STATIC src/cam_reader.cpp)
+add_library(aruco_desk STATIC src/aruco_matrix.cpp)
 
 # добавляем исполняемые файлы
 # нода для запуска навигационной системы
@@ -44,6 +46,6 @@ add_executable(flight_controller_node src/flight_controller_node.cpp)
 # libraris link for visual navigation system
 target_link_libraries(control_sys_libs  ${catkin_LIBRARIES})
 target_link_libraries(circle_fly_example ${catkin_LIBRARIES})
-target_link_libraries(flight_controller_node  ${catkin_LIBRARIES} control_sys_libs transform tech_vis)
+target_link_libraries(flight_controller_node  ${catkin_LIBRARIES} control_sys_libs transform tech_vis cam_params aruco_desk)
 #target_link_libraries(go_to_example  ${catkin_LIBRARIES})
 

@@ -11,6 +11,8 @@
 #include <sensor_msgs/CameraInfo.h>
 #include <opencv2/opencv.hpp>
 #include <opencv2/aruco.hpp>
+#include "cam_reader.hpp"
+#include "aruco_matrix.hpp"
 
 // Обьявим класс для контроллера БЛА
 // этот класс включает методы для управления аппаратом
@@ -22,6 +24,7 @@ namespace uav_controller
 	{
 		public:
 		UavController(ros::NodeHandle &n, const std::string &uavName="mavros"); //конструктор класса
+		
 
 		/**
 			* @brief Метод переводит аппарат в состояние arm/disarm
@@ -55,6 +58,8 @@ namespace uav_controller
 
 		private:
         //Приватные члены класса
+		CamReader camReader;  // Объявляем член класса
+		MarkerPosition marker; // класс для получения маркеров
 		ros::NodeHandle &n_;
 		std::string uavName_;
 		mavros_msgs::PositionTarget setPoint_;        // объект сообщения для задающего воздействия
@@ -77,6 +82,7 @@ namespace uav_controller
 		cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_100);
 		cv::Mat cameraMatrix; //  Матрица камеры
         std::vector<double> distCoeffs;   //  Коэффициенты искажений
+		std::map<int, std::vector<cv::Point3f>> Markers_dict; //словарь с маркерами и их координатами в мировой СК
 		
 
 		double target_alt;  //Целевая высота взлета дрона
@@ -89,6 +95,7 @@ namespace uav_controller
 		void realPositionCallback(const geometry_msgs::PoseStamped::ConstPtr &currentPoseLocal);
 		void offboard_enable(bool enable);
 		bool change_mode(const std::string &mode);
+		
 
 		
 		

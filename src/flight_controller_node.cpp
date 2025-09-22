@@ -2,50 +2,81 @@
 #include <geometry_msgs/PoseStamped.h>
 #include "flight_controller.hpp"
 #include <mavros_msgs/State.h>
-
+#include "cam_reader.hpp"
+#include <vector>
+#include "aruco_matrix.hpp"
 
 
 // Объявим точку входа в исполняемом файле
 int main(int argc, char **argv)
 {
-    // Инициализация ноды и регистрция ее в master node
+    // Инициализация ноды и регистрация ее в master node
     // с именем uav_controller_node
     ros::init(argc, argv, "uav_controller_node");
+    
     // cоздаем экземпляр класса ноды
     ros::NodeHandle n;
+
     geometry_msgs::PoseStamped desPose;
     ros::Rate rate(30);
+
     // создаем экземпляр класса системы управления БЛА
     uav_controller::UavController controller(n);
+    //Создаем экземпляр класса для получения параметров камеры
+    //CamReader cam(n);
 
-    //арминг дрона  
+    //MarkerPosition marker(n);
+
+
+    //Выполним арминг дрона  
     controller.arm(true);
+    //marker.getMarkerMatrix();
+
+        
+
     // Немного ждем пока сообщения начнут приходить на автопилот
     //ros::Rate rate(1.0);
     rate.sleep();
     
+    //Зададим высоту взлета дрона
     double target_altitude = 2.0;
-    
+
+   //Выполним взлет дрона
     controller.do_takeoff(target_altitude);
-      
-    
-    
-        while (ros::ok())
+   
+    while (ros::ok())
+    {
+        // Делаем шаг системы
+        // После вызова данной комманды если в очереди были сообщения
+        // произойдет чтение сообщение из очереди и вызов callback
+        ros::spinOnce();
+        controller.run();
+        /*
+        // Получаем матрицу калибровки
+        cv::Mat matrix = cam.get_cameraMatrix();
+        // Получаем параметры дисторсии
+        std::vector<double> distVec = cam.get_distCoeff();
+        if (!matrix.empty())
         {
-            // Делаем шаг системы
-            // После вызова данной комманды если в очереди были сообщения
-            // произойдет чтение сообщение из очереди и вызов callback
-            ros::spinOnce();
-            controller.run();
-            // Получим текущие координаты дрона
-            //controller.calculateAndSendSetpoint(); //.pose.position.x;
-            controller.takeoffSendSetpoint();
-            controller.markers_w();
-            // controller.arm(true);
-            //  Ожидание для поддержания частоты работы системы
-            //  ожидание проходит с учетом времени между текущей и предыдущей итерациями
-            //  что позволяет более точно регулировать частоту работы системы
-            rate.sleep();
+            ROS_INFO("Camera matrix received:");
+            std::cout << matrix << std::endl;
+            std::cout << distVec.at(0) << std::endl;
+            std::cout << distVec.at(1) << std::endl;
+            //ROS_INFO("%s", matrix.dump().c_str());
         }
-    
+            */
+
+        // Получим текущие координаты дрона
+        //controller.calculateAndSendSetpoint(); //.pose.position.x;
+        controller.takeoffSendSetpoint();
+        controller.markers_w();
+        // controller.arm(true);
+        //  Ожидание для поддержания частоты работы системы
+        //  ожидание проходит с учетом времени между текущей и предыдущей итерациями
+        //  что позволяет более точно регулировать частоту работы системы
+        rate.sleep();
+
+
+    }    
+       
 }
