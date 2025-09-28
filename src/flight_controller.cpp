@@ -16,7 +16,6 @@
 #include "cam_reader.hpp"
 #include "image_getter.hpp"
 
-
 namespace uav_controller
 {
 
@@ -52,67 +51,67 @@ namespace uav_controller
 	{
 		// Подписываемся на состояние и положение БЛА
 		stateSub_ = n_.subscribe<mavros_msgs::State>("/mavros/state", 10, &UavController::uavStateCallback, this);
-		
-		// Инициализация подписки на топик желаемого положения ЛА
-		//cameraInfo_ = n_.subscribe<sensor_msgs::CameraInfo>("/iris/camera1/camera_info", 1, &UavController::cameraInfoCallback, this);
 
-        // Инициализация подписки на топик камеры ЛА
+		// Инициализация подписки на топик желаемого положения ЛА
+		// cameraInfo_ = n_.subscribe<sensor_msgs::CameraInfo>("/iris/camera1/camera_info", 1, &UavController::cameraInfoCallback, this);
+
+		// Инициализация подписки на топик камеры ЛА
 		cameraSub_ = n_.subscribe<sensor_msgs::Image>("/iris/camera1/image_raw", 1, &UavController::imageCallback, this);
-		
+
 		// Инициализация подписки на топик реального положения ЛА
 		localPositionSub_ = n_.subscribe<geometry_msgs::PoseStamped>("mavros/local_position/pose", 1, &UavController::realPositionCallback, this);
-		
+
 		// Инициализируем publisher для целевого состояния ЛА
 		setPointPub_ = n_.advertise<mavros_msgs::PositionTarget>("mavros/setpoint_raw/local", 10);
 	}
 
-    void UavController::uavStateCallback(const mavros_msgs::State::ConstPtr &msg)
-    {
+	void UavController::uavStateCallback(const mavros_msgs::State::ConstPtr &msg)
+	{
 		currentState_ = *msg;
 	}
 
-	//метод для обработки задаваемого положения БЛА
-	void UavController::imageCallback(const sensor_msgs::ImageConstPtr& msg)
-    {
-	    try
-        {
-            cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
-            // Обработка изображения
-            //cv::imshow("Image Window", cv_ptr->image);
-            //cv::waitKey(3);
+	// метод для обработки задаваемого положения БЛА
+	void UavController::imageCallback(const sensor_msgs::ImageConstPtr &msg)
+	{
+		try
+		{
+			cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
+			// Обработка изображения
+			// cv::imshow("Image Window", cv_ptr->image);
+			// cv::waitKey(3);
 			// преобразование изображения из формата ROS в формат OpenCV.
 			cv_image = cv_bridge::toCvCopy(msg, "bgr8")->image;
-        }
-        catch (cv_bridge::Exception& e)
-        {
-            ROS_ERROR("Ошибка конвертации изображения: %s", e.what());
-        }
+		}
+		catch (cv_bridge::Exception &e)
+		{
+			ROS_ERROR("Ошибка конвертации изображения: %s", e.what());
+		}
 	}
 
-	//метод для обработки реального положения БЛА
+	// метод для обработки реального положения БЛА
 	void UavController::realPositionCallback(const geometry_msgs::PoseStamped::ConstPtr &currentPoseLocal)
 	{
-        currentPoseLocal_ = *currentPoseLocal;
+		currentPoseLocal_ = *currentPoseLocal;
 	}
 
 	/*void UavController::cameraInfoCallback(const sensor_msgs::CameraInfo::ConstPtr& msg)
 	{
 		// Сохранение матрицы калибровки
 		cameraMatrix = cv::Mat(3, 3, CV_64F);
-        cameraMatrix.at<double>(0, 0) = msg->K[0];
-        cameraMatrix.at<double>(0, 1) = msg->K[1];
-        cameraMatrix.at<double>(0, 2) = msg->K[2];
-        
-        cameraMatrix.at<double>(1, 0) = msg->K[3];
-        cameraMatrix.at<double>(1, 1) = msg->K[4];
-        cameraMatrix.at<double>(1, 2) = msg->K[5];
-        
-        cameraMatrix.at<double>(2, 0) = msg->K[6];
-        cameraMatrix.at<double>(2, 1) = msg->K[7];
-        cameraMatrix.at<double>(2, 2) = msg->K[8];
+		cameraMatrix.at<double>(0, 0) = msg->K[0];
+		cameraMatrix.at<double>(0, 1) = msg->K[1];
+		cameraMatrix.at<double>(0, 2) = msg->K[2];
+
+		cameraMatrix.at<double>(1, 0) = msg->K[3];
+		cameraMatrix.at<double>(1, 1) = msg->K[4];
+		cameraMatrix.at<double>(1, 2) = msg->K[5];
+
+		cameraMatrix.at<double>(2, 0) = msg->K[6];
+		cameraMatrix.at<double>(2, 1) = msg->K[7];
+		cameraMatrix.at<double>(2, 2) = msg->K[8];
 
 		// Получение коэффициентов дисторсии
-        distCoeffs = msg->D;
+		distCoeffs = msg->D;
 
 
 	}*/
@@ -134,31 +133,31 @@ namespace uav_controller
 		}
 	}
 
-	//взлетный режим
-    bool UavController::do_takeoff(double target_altitude)
-    {
-        if (!currentState_.armed)
+	// взлетный режим
+	bool UavController::do_takeoff(double target_altitude)
+	{
+		if (!currentState_.armed)
 		{
-            arm(true);
+			arm(true);
 		}
 
-        //double ascent_speed = 1.0;                       // Установим скорость взлета 1 м\с
-        //double timeout = 1 / ascent_speed + 10.0; // установим таймаут исходя из скорости взлета с небольшим запасом
-        auto start_time = ros::Time::now();
-        bool altitude_reached = false;
-        ros::Rate rate(30);
+		// double ascent_speed = 1.0;                       // Установим скорость взлета 1 м\с
+		// double timeout = 1 / ascent_speed + 10.0; // установим таймаут исходя из скорости взлета с небольшим запасом
+		auto start_time = ros::Time::now();
+		bool altitude_reached = false;
+		ros::Rate rate(30);
 		bool result = false;
 		target_alt = target_altitude;
-		//ArucoVision vision(n_);
-        while (ros::ok() && !altitude_reached)
-        {
+		// ArucoVision vision(n_);
+		while (ros::ok() && !altitude_reached)
+		{
 			rate.sleep();
 			ros::spinOnce();
 			run();
 			takeoffSendSetpoint();
-			
-			//vision.imageCallback
-			// Проверим достижение заданной высоты с точностью в 10 см
+
+			// vision.imageCallback
+			//  Проверим достижение заданной высоты с точностью в 10 см
 			if (std::abs(currentPoseLocal_.pose.position.z - target_altitude) < 0.1)
 			{
 				altitude_reached = true;
@@ -167,17 +166,17 @@ namespace uav_controller
 				result = true;
 			}
 
-/*
-            // Проверяем не вышел ли взлет за таймаут
-            if ((ros::Time::now() - start_time).toSec() > timeout)
-            {
-                ROS_WARN("Timeout reached without achieving target altitude.");
-				return false;
-                break;
-            }*/
-        }
+			/*
+						// Проверяем не вышел ли взлет за таймаут
+						if ((ros::Time::now() - start_time).toSec() > timeout)
+						{
+							ROS_WARN("Timeout reached without achieving target altitude.");
+							return false;
+							break;
+						}*/
+		}
 		return result;
-    }
+	}
 
 	// Метод выполняет расчет желаемой линейной скорости БЛА и скорости угла рыскания
 	void UavController::calculateAndSendSetpoint()
@@ -185,9 +184,9 @@ namespace uav_controller
 		double des_x, des_y, des_z;
 
 		// Получение целевых координат БЛА
-		des_x = 0;//desPose_.pose.position.x;
-		des_y = 0;//desPose_.pose.position.y;
-		des_z = target_alt;//.pose.position.z;
+		des_x = 0;			// desPose_.pose.position.x;
+		des_y = 0;			// desPose_.pose.position.y;
+		des_z = target_alt; //.pose.position.z;
 
 		// Вывод результатов
 		std::cout << "Target: [x = " << des_x << " y = " << des_y << " z = " << des_z << " ]" << std::endl;
@@ -220,7 +219,7 @@ namespace uav_controller
 		err_x = des_x - x;
 		err_y = des_y - y;
 		err_z = des_z - z;
-		
+
 		// Расчет целевого значения угла рыскания
 		target_yaw = std::atan2(err_y, err_x);
 		// Вывод результатов
@@ -234,7 +233,7 @@ namespace uav_controller
 		V_y = 0.75 * err_y;		   // 0.75 - коэффициент П-регулятора
 		V_z = 0.22 * err_z;		   // 0.22 - коэффициент П-регулятора
 		yaw_rate = 0.95 * err_yaw; // 0.95 - коэффициент П-регулятора
-		
+
 		// выведем результат в формате [-pi, pi]
 		yaw_rate = std::atan2(std::sin(yaw_rate), std::cos(yaw_rate));
 		// Вывод результатов
@@ -296,7 +295,7 @@ namespace uav_controller
 		err_x = des_x - x;
 		err_y = des_y - y;
 		err_z = des_z - z;
-		
+
 		// Расчет целевого значения угла рыскания
 		target_yaw = std::atan2(err_y, err_x);
 		// Вывод результатов
@@ -310,10 +309,10 @@ namespace uav_controller
 		V_y = 0.75 * err_y;		  // 0.75 - коэффициент П-регулятора
 		V_z = 0.87 * err_z;		  // 0.22 - коэффициент П-регулятора
 		yaw_rate = 0.5 * err_yaw; // 0.95 - коэффициент П-регулятора
-		
+
 		// выведем результат в формате [-pi, pi]
 		yaw_rate = std::atan2(std::sin(yaw_rate), std::cos(yaw_rate));
-		
+
 		// Установим лимиты целевых скоростей
 		double V_x1 = clip(V_x, -2, 2);
 		double V_y1 = clip(V_y, -2, 2);
@@ -327,11 +326,10 @@ namespace uav_controller
 
 		// Вывод результатов
 		std::cout << "yaw_rate = " << yaw_rate << std::endl;
-        std::cout << "V_x = " << V_x1 << std::endl;
-        std::cout << "V_y = " << V_y1 << std::endl;
-        std::cout << "V_z = " << V_z1 << std::endl;
-		//std::cout << "fhfh " << setPoint_ << std::endl;
-		
+		std::cout << "V_x = " << V_x1 << std::endl;
+		std::cout << "V_y = " << V_y1 << std::endl;
+		std::cout << "V_z = " << V_z1 << std::endl;
+		// std::cout << "fhfh " << setPoint_ << std::endl;
 
 		// отправка
 		setPointPub_.publish(setPoint_);
@@ -359,28 +357,28 @@ namespace uav_controller
 		setPoint_.coordinate_frame = setpointCoordinateFrame;
 	}
 
-    // Смена режима полета
-    bool UavController::change_mode(const std::string &mode)
-    {
-        mavros_msgs::SetMode sm;
-        sm.request.custom_mode = mode;
+	// Смена режима полета
+	bool UavController::change_mode(const std::string &mode)
+	{
+		mavros_msgs::SetMode sm;
+		sm.request.custom_mode = mode;
 
-        ros::ServiceClient client = n_.serviceClient<mavros_msgs::SetMode>("/mavros/set_mode");
-        return client.call(sm) && sm.response.mode_sent;
-    }
+		ros::ServiceClient client = n_.serviceClient<mavros_msgs::SetMode>("/mavros/set_mode");
+		return client.call(sm) && sm.response.mode_sent;
+	}
 
 	// обраьотка маркеров
 	void UavController::markers_w()
 	{
-        //Получим данные из словаря
+		// Получим данные из словаря
 		Markers_dict = marker.getMarkerMatrix();
-        //Проверим работоспособность 
-		//std::cout << Markers_dict[1] << std::endl;
-		// Обнуляем векторы перед новым поиском
+		// Проверим работоспособность
+		// std::cout << Markers_dict[1] << std::endl;
+		//  Обнуляем векторы перед новым поиском
 		ids.clear();
 		corners.clear();
-		//CamReader cam(n_);
-	
+		// CamReader cam(n_);
+
 		cv::Mat cameraMatrix = camReader.get_cameraMatrix();
 		/*
 		if (cameraMatrix.empty())
@@ -388,32 +386,35 @@ namespace uav_controller
 			std::cout << "fhgdhgdhgdgdghgdh" << std::endl;
 		}
 		else{
-		    std::cout << "working" << std::endl;
-      	}*/
-	    //Получение параметров камеры
+			std::cout << "working" << std::endl;
+		}*/
+		// Получение параметров камеры
 		distCoeffs = camReader.get_distCoeff();
 		if (!cameraMatrix.empty())
-        {
-            ROS_INFO("Camera matrix received:");
-            std::cout << cameraMatrix << std::endl;
-            std::cout << distCoeffs.at(0) << std::endl;
-            std::cout << distCoeffs.at(1) << std::endl;
-            //ROS_INFO("%s", matrix.dump().c_str());
-        }
+		{
+			ROS_INFO("Camera matrix received:");
+			std::cout << cameraMatrix << std::endl;
+			std::cout << distCoeffs.at(0) << std::endl;
+			std::cout << distCoeffs.at(1) << std::endl;
+			// ROS_INFO("%s", matrix.dump().c_str());
+		}
 
 		if (!cameraMatrix.empty() && !distCoeffs.empty())
 		{
 			try
 			{
-				// Создаем окно для отображения
-				//cv::namedWindow("Image Window", cv::WINDOW_NORMAL);
+				// Создаем вектор с координатами точек в МСК
+				std::vector<cv::Point3f> objectPoints;
 
-                // Параметры для вывода текста
-                
-                int fontFace = cv::FONT_HERSHEY_SIMPLEX;
-                double fontScale = 0.4;
-                cv::Scalar color = cv::Scalar(0, 0, 255);
-                int thickness = 1;
+				std::vector<cv::Point2f> imagePoints;
+				// cv::namedWindow("Image Window", cv::WINDOW_NORMAL);
+
+				// Параметры для вывода текста
+
+				int fontFace = cv::FONT_HERSHEY_SIMPLEX;
+				double fontScale = 0.4;
+				cv::Scalar color = cv::Scalar(0, 0, 255);
+				int thickness = 1;
 
 				// Обнаружение маркеров
 				cv::aruco::detectMarkers(cv_image, dictionary, corners, ids);
@@ -422,24 +423,66 @@ namespace uav_controller
 				if (!ids.empty())
 				{
 					ROS_INFO("Found %d markers", ids.size());
-					
-			//		int marker_id = ids[0];
+
+					//		int marker_id = ids[0];
 					cv::Mat rvec, tvec;
+					objectPoints.clear(); // очистка вектора
+					imagePoints.clear();
 
 					for (size_t i = 0; i < ids.size(); ++i)
 					{
 						// Обработка изображения
 
 						std::vector<cv::Point3f> result = Markers_dict[ids.at(i)];
+						objectPoints.push_back(result.at(0));
+						//objectPoints.push_back(result.at(1));
+						//objectPoints.push_back(result.at(2));
+						//objectPoints.push_back(result.at(3));
 						// Форматируем координаты в строку
-                        std::stringstream ss;
-                        ss << "X: " << result.at(0).x << ", Y: " << result.at(0).y;
-                        std::string text = ss.str();
-						cv::circle(cv_image,corners[i].at(0), 5, cv::Scalar(0, 0, 255), 2);
+						std::stringstream ss;
+						ss << "X: " << result.at(0).x << ", Y: " << result.at(0).y;
+						std::string text = ss.str();
+						cv::circle(cv_image, corners[i].at(0), 5, cv::Scalar(0, 0, 255), 2);
+						imagePoints.push_back(corners[i].at(0));
+						//imagePoints.push_back(corners[i].at(1));
+						//imagePoints.push_back(corners[i].at(2));
+						//imagePoints.push_back(corners[i].at(3));
 						cv::Point textOrg(corners[i].at(0).x + 10, corners[i].at(0).y + 10);
 						cv::putText(cv_image, text, textOrg, fontFace, fontScale, color, thickness, cv::LINE_AA);
+					}
+
+					bool success = cv::solvePnP(
+						objectPoints,
+						imagePoints,
+						cameraMatrix,
+						distCoeffs,
+						rvec,
+						tvec,
+						false,
+						cv::SOLVEPNP_ITERATIVE);
+
+					if (success)
+					{
+						std::cout << "Вектор поворота: " << rvec << std::endl;
+						std::cout << "Вектор переноса: " << tvec << std::endl;
+						std::cout << "\nКоординаты дрона (tvec):" << std::endl;
+						std::cout << "X: " << tvec.at<double>(0, 0) << std::endl;
+						std::cout << "Y: " << tvec.at<double>(1, 0) << std::endl;
+						std::cout << "Z: " << tvec.at<double>(2, 0) << std::endl;
+						//cv::circle(cv_image, {tvec.at<double>(0, 0), tvec.at<double>(1, 0)}, 5, cv::Scalar(0, 255, 0), 2);
+						//cv::Point textOrg(tvec.at<double>(0, 0) + 10 , tvec.at<double>(1, 0) + 10);
+						// Форматируем координаты в строку
+						std::stringstream ss;
+						ss << "X: " << tvec.at<double>(0, 0) << ", Y: " << tvec.at<double>(1, 0);
+						//std::string text = ss.str();
+						//cv::putText(cv_image, text, textOrg, fontFace, fontScale, color, thickness, cv::LINE_AA);
 
 					}
+					else
+					{
+						std::cerr << "Ошибка при решении PnP" << std::endl;
+					}
+
 					if (cv_image.empty())
 					{
 						std::cout << "empty image!!!" << std::endl;
@@ -455,13 +498,13 @@ namespace uav_controller
 					// Добавляем задержку для корректного отображения
 					cv::waitKey(3); // Увеличиваем время ожидания*/
 
-			//	cv::aruco::estimatePoseSingleMarkers(corners, 0.3, cameraMatrix, distCoeffs, rvec, tvec);
+					//	cv::aruco::estimatePoseSingleMarkers(corners, 0.3, cameraMatrix, distCoeffs, rvec, tvec);
 
-				//	double roll = rvec.at<double>(0);
-				//	double pitch = rvec.at<double>(1);
-			//		double yaw = rvec.at<double>(2);
+					//	double roll = rvec.at<double>(0);
+					//	double pitch = rvec.at<double>(1);
+					//		double yaw = rvec.at<double>(2);
 
-				//	std::cout << roll << std::endl;
+					//	std::cout << roll << std::endl;
 
 					// Преобразование rvec в матрицу вращения
 					// cv::Mat rotation_matrix;
@@ -470,7 +513,6 @@ namespace uav_controller
 
 					// cam_Info.
 					//  Здесь можно добавить обработку координат маркеров
-
 				}
 				else
 				{
@@ -482,48 +524,45 @@ namespace uav_controller
 				ROS_ERROR("Ошибка конвертации: %s", e.what());
 			}
 		}
-		
 	}
 
 	// Активация автоматического режима полета
-    void UavController::offboard_enable(bool enable)
-    {
-        if (enable)
-        {
-            //offboard_timer_.stop();
-            //return;
-        
-        // Установка начального положения.
-        //set_position(0, 0, 0, 0);
-        // Запускаем таймер отправки целевого положения
-        //offboard_timer_.start();
-        // Немного ждем пока сообщения начнут приходить на автопилот
-        //ros::Rate rate(1.0); set_mode_service = rospy.ServiceProxy('/mavros/set_mode', SetMode)
-        //rate.sleep();
-        // Переключение режима на OFFBOARD
-		
-		// Переключение режима на OFFBOARD
-        change_mode("OFFBOARD");
-		
-    	}
-    }
+	void UavController::offboard_enable(bool enable)
+	{
+		if (enable)
+		{
+			// offboard_timer_.stop();
+			// return;
 
+			// Установка начального положения.
+			// set_position(0, 0, 0, 0);
+			// Запускаем таймер отправки целевого положения
+			// offboard_timer_.start();
+			// Немного ждем пока сообщения начнут приходить на автопилот
+			// ros::Rate rate(1.0); set_mode_service = rospy.ServiceProxy('/mavros/set_mode', SetMode)
+			// rate.sleep();
+			// Переключение режима на OFFBOARD
+
+			// Переключение режима на OFFBOARD
+			change_mode("OFFBOARD");
+		}
+	}
 
 	void UavController::run()
-    {
-        // Ожидаем подключения к автопилоту
-        while (ros::ok() && !currentState_.connected)
-        {
-            ros::spinOnce();
+	{
+		// Ожидаем подключения к автопилоту
+		while (ros::ok() && !currentState_.connected)
+		{
+			ros::spinOnce();
 			ros::Rate rate(10);
-            rate.sleep();
-        }
+			rate.sleep();
+		}
 
-        // Запускаем режим offboard
-        offboard_enable(true);
-        //do_takeoff(2.0); // Взлетаем на 2 метра....
+		// Запускаем режим offboard
+		offboard_enable(true);
+		// do_takeoff(2.0); // Взлетаем на 2 метра....
 
-        // Методы для следования в точку и  посадки можно сделать по аналогии.
-    }
+		// Методы для следования в точку и  посадки можно сделать по аналогии.
+	}
 
 } // namespace uav_controller
