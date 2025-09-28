@@ -435,18 +435,18 @@ namespace uav_controller
 
 						std::vector<cv::Point3f> result = Markers_dict[ids.at(i)];
 						objectPoints.push_back(result.at(0));
-						//objectPoints.push_back(result.at(1));
-						//objectPoints.push_back(result.at(2));
-						//objectPoints.push_back(result.at(3));
+						objectPoints.push_back(result.at(1));
+						objectPoints.push_back(result.at(2));
+						objectPoints.push_back(result.at(3));
 						// Форматируем координаты в строку
 						std::stringstream ss;
 						ss << "X: " << result.at(0).x << ", Y: " << result.at(0).y;
 						std::string text = ss.str();
 						cv::circle(cv_image, corners[i].at(0), 5, cv::Scalar(0, 0, 255), 2);
 						imagePoints.push_back(corners[i].at(0));
-						//imagePoints.push_back(corners[i].at(1));
-						//imagePoints.push_back(corners[i].at(2));
-						//imagePoints.push_back(corners[i].at(3));
+						imagePoints.push_back(corners[i].at(1));
+						imagePoints.push_back(corners[i].at(2));
+						imagePoints.push_back(corners[i].at(3));
 						cv::Point textOrg(corners[i].at(0).x + 10, corners[i].at(0).y + 10);
 						cv::putText(cv_image, text, textOrg, fontFace, fontScale, color, thickness, cv::LINE_AA);
 					}
@@ -469,11 +469,23 @@ namespace uav_controller
 						std::cout << "X: " << tvec.at<double>(0, 0) << std::endl;
 						std::cout << "Y: " << tvec.at<double>(1, 0) << std::endl;
 						std::cout << "Z: " << tvec.at<double>(2, 0) << std::endl;
+						cv::Mat rotationMatrix;
+                        cv::Rodrigues(rvec, rotationMatrix);
+						std::cout << rvec << std::endl;
+						// Транспонируем матрицу вращения
+                        cv::Mat R_t = rotationMatrix.t();
+                        // Вычисляем позицию камеры
+                        cv::Mat camera_position = -R_t * tvec;
+
+						std::cout << "Позиция камеры в мировых координатах:" << std::endl;
+                        std::cout << "X_MSK: " << camera_position.at<double>(0, 0) << std::endl;
+                        std::cout << "Y_MSK: " << camera_position.at<double>(1, 0) << std::endl;
+                        std::cout << "Z_MSK: " << camera_position.at<double>(2, 0) << std::endl;
 						//cv::circle(cv_image, {tvec.at<double>(0, 0), tvec.at<double>(1, 0)}, 5, cv::Scalar(0, 255, 0), 2);
 						//cv::Point textOrg(tvec.at<double>(0, 0) + 10 , tvec.at<double>(1, 0) + 10);
 						// Форматируем координаты в строку
-						std::stringstream ss;
-						ss << "X: " << tvec.at<double>(0, 0) << ", Y: " << tvec.at<double>(1, 0);
+						//std::stringstream ss;
+						//ss << "X: " << tvec.at<double>(0, 0) << ", Y: " << tvec.at<double>(1, 0);
 						//std::string text = ss.str();
 						//cv::putText(cv_image, text, textOrg, fontFace, fontScale, color, thickness, cv::LINE_AA);
 
