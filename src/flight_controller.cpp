@@ -15,6 +15,7 @@
 #include "fiducial_navigation.hpp"
 #include "cam_reader.hpp"
 #include "image_getter.hpp"
+#include <geometry_msgs/Point.h>
 
 namespace uav_controller
 {
@@ -52,8 +53,9 @@ namespace uav_controller
 		// Подписываемся на состояние и положение БЛА
 		stateSub_ = n_.subscribe<mavros_msgs::State>("/mavros/state", 10, &UavController::uavStateCallback, this);
 
-		// Инициализация подписки на топик желаемого положения ЛА
-		// cameraInfo_ = n_.subscribe<sensor_msgs::CameraInfo>("/iris/camera1/camera_info", 1, &UavController::cameraInfoCallback, this);
+		// Инициализация подписки на топик odometry
+		//odometry_ = n_.subscribe<nav_msgs::Odometry>("/mavros/global_position/local", 1, &UavController::odometryCallback, this);
+		odometrySub_ = n_.subscribe<nav_msgs::Odometry>("/mavros/global_position/local", 1, &UavController::odometryCallback, this);
 
 		// Инициализация подписки на топик камеры ЛА
 		cameraSub_ = n_.subscribe<sensor_msgs::Image>("/iris/camera1/image_raw", 1, &UavController::imageCallback, this);
@@ -88,33 +90,22 @@ namespace uav_controller
 		}
 	}
 
-	// метод для обработки реального положения БЛА
+    void UavController::odometryCallback(const nav_msgs::Odometry::ConstPtr& msg)
+    {
+		odometry_.x = msg->pose.pose.position.x;
+        odometry_.y = msg->pose.pose.position.y;
+        odometry_.z = msg->pose.pose.position.z;
+		orientation_.w = msg ->pose.pose.orientation.w;
+		orientation_.x = msg ->pose.pose.orientation.x;
+		orientation_.y = msg ->pose.pose.orientation.y;
+		orientation_.z = msg ->pose.pose.orientation.z;
+    }
+
+    // метод для обработки реального положения БЛА
 	void UavController::realPositionCallback(const geometry_msgs::PoseStamped::ConstPtr &currentPoseLocal)
 	{
 		currentPoseLocal_ = *currentPoseLocal;
 	}
-
-	/*void UavController::cameraInfoCallback(const sensor_msgs::CameraInfo::ConstPtr& msg)
-	{
-		// Сохранение матрицы калибровки
-		cameraMatrix = cv::Mat(3, 3, CV_64F);
-		cameraMatrix.at<double>(0, 0) = msg->K[0];
-		cameraMatrix.at<double>(0, 1) = msg->K[1];
-		cameraMatrix.at<double>(0, 2) = msg->K[2];
-
-		cameraMatrix.at<double>(1, 0) = msg->K[3];
-		cameraMatrix.at<double>(1, 1) = msg->K[4];
-		cameraMatrix.at<double>(1, 2) = msg->K[5];
-
-		cameraMatrix.at<double>(2, 0) = msg->K[6];
-		cameraMatrix.at<double>(2, 1) = msg->K[7];
-		cameraMatrix.at<double>(2, 2) = msg->K[8];
-
-		// Получение коэффициентов дисторсии
-		distCoeffs = msg->D;
-
-
-	}*/
 
 	// метод для установки ограничений значений в пределах заданного диапазона.
 	double clip(double value, double min_val, double max_val)
@@ -266,19 +257,33 @@ namespace uav_controller
 
 		// Вывод результатов
 		std::cout << "Target: [x = " << des_x << " y = " << des_y << " z = " << des_z << " ]" << std::endl;
-
+        
 		// Получение текущих координат БЛА
-		double x = currentPoseLocal_.pose.position.x;
-		double y = currentPoseLocal_.pose.position.y;
-		double z = currentPoseLocal_.pose.position.z;
+        std::cout << "Одометрия:" << std::endl;
+        std::cout << "X_od: " << odometry_.x << std::endl;
+        std::cout << "Y_od: " << odometry_.y << std::endl;
+        std::cout << "Z_od: " << odometry_.z << std::endl;
+
+        double x = odometry_.x;
+        double y = odometry_.y;
+        double z = odometry_.z;
+		
+		//double x = currentPoseLocal_.pose.position.x;
+		//double y = currentPoseLocal_.pose.position.y;
+		//double z = currentPoseLocal_.pose.position.z;
 		// Вывод результатов
 		std::cout << "Position: [x = " << x << " y = " << y << " z = " << z << " ]" << std::endl;
 
 		// Получение данных от текущей ориентации БЛА
+		double w = orientation_.w;
+		double x1 = orientation_.x;
+		double y1 = orientation_.y;
+		double z1 = orientation_.z;
+		/*
 		double w = currentPoseLocal_.pose.orientation.w;
 		double x1 = currentPoseLocal_.pose.orientation.x;
 		double y1 = currentPoseLocal_.pose.orientation.y;
-		double z1 = currentPoseLocal_.pose.orientation.z;
+		double z1 = currentPoseLocal_.pose.orientation.z;*/
 
 		// Получение текущих углов ориентации БЛА
 		EulerAngles ddd;
@@ -367,27 +372,19 @@ namespace uav_controller
 		return client.call(sm) && sm.response.mode_sent;
 	}
 
-	// обраьотка маркеров
+	// обработка маркеров
 	void UavController::markers_w()
 	{
 		// Получим данные из словаря
 		Markers_dict = marker.getMarkerMatrix();
-		// Проверим работоспособность
-		// std::cout << Markers_dict[1] << std::endl;
+		
 		//  Обнуляем векторы перед новым поиском
 		ids.clear();
 		corners.clear();
-		// CamReader cam(n_);
 
+		//Получим параметры камеры;
 		cv::Mat cameraMatrix = camReader.get_cameraMatrix();
-		/*
-		if (cameraMatrix.empty())
-		{
-			std::cout << "fhgdhgdhgdgdghgdh" << std::endl;
-		}
-		else{
-			std::cout << "working" << std::endl;
-		}*/
+	
 		// Получение параметров камеры
 		distCoeffs = camReader.get_distCoeff();
 		if (!cameraMatrix.empty())
@@ -396,7 +393,6 @@ namespace uav_controller
 			std::cout << cameraMatrix << std::endl;
 			std::cout << distCoeffs.at(0) << std::endl;
 			std::cout << distCoeffs.at(1) << std::endl;
-			// ROS_INFO("%s", matrix.dump().c_str());
 		}
 
 		if (!cameraMatrix.empty() && !distCoeffs.empty())
@@ -410,7 +406,6 @@ namespace uav_controller
 				// cv::namedWindow("Image Window", cv::WINDOW_NORMAL);
 
 				// Параметры для вывода текста
-
 				int fontFace = cv::FONT_HERSHEY_SIMPLEX;
 				double fontScale = 0.4;
 				cv::Scalar color = cv::Scalar(0, 0, 255);
@@ -424,31 +419,42 @@ namespace uav_controller
 				{
 					ROS_INFO("Found %d markers", ids.size());
 
-					//		int marker_id = ids[0];
+					//создаем структуры rvec tvec
 					cv::Mat rvec, tvec;
-					objectPoints.clear(); // очистка вектора
+
+                    // очистка векторов
+					objectPoints.clear(); 
 					imagePoints.clear();
 
 					for (size_t i = 0; i < ids.size(); ++i)
 					{
 						// Обработка изображения
-
 						std::vector<cv::Point3f> result = Markers_dict[ids.at(i)];
 						objectPoints.push_back(result.at(0));
 						objectPoints.push_back(result.at(1));
 						objectPoints.push_back(result.at(2));
 						objectPoints.push_back(result.at(3));
+
 						// Форматируем координаты в строку
 						std::stringstream ss;
+                        std::stringstream ss2;
+
 						ss << "X: " << result.at(0).x << ", Y: " << result.at(0).y;
 						std::string text = ss.str();
+						ss2 << "X: " << result.at(2).x << ", Y: " << result.at(2).y;
+						std::string text2 = ss2.str();
+						
 						cv::circle(cv_image, corners[i].at(0), 5, cv::Scalar(0, 0, 255), 2);
+						cv::circle(cv_image, corners[i].at(2), 5, cv::Scalar(0, 255, 0), 2);
 						imagePoints.push_back(corners[i].at(0));
 						imagePoints.push_back(corners[i].at(1));
 						imagePoints.push_back(corners[i].at(2));
 						imagePoints.push_back(corners[i].at(3));
+						
 						cv::Point textOrg(corners[i].at(0).x + 10, corners[i].at(0).y + 10);
+						cv::Point textOrg2(corners[i].at(2).x + 10, corners[i].at(2).y + 10);
 						cv::putText(cv_image, text, textOrg, fontFace, fontScale, color, thickness, cv::LINE_AA);
+						cv::putText(cv_image, text2, textOrg2, fontFace, fontScale, color, thickness, cv::LINE_AA);
 					}
 
 					bool success = cv::solvePnP(
@@ -481,6 +487,17 @@ namespace uav_controller
                         std::cout << "X_MSK: " << camera_position.at<double>(0, 0) << std::endl;
                         std::cout << "Y_MSK: " << camera_position.at<double>(1, 0) << std::endl;
                         std::cout << "Z_MSK: " << camera_position.at<double>(2, 0) << std::endl;
+
+						std::cout << "Одометрия:" << std::endl;
+                        std::cout << "X_od: " << odometry_.x << std::endl;
+                        std::cout << "Y_od: " << odometry_.y << std::endl;
+                        std::cout << "Z_od: " << odometry_.z << std::endl;
+
+						std::cout << "Расхождение:" << std::endl;
+                        std::cout << "Delta_X: " << abs(odometry_.x - camera_position.at<double>(0, 0)) << std::endl;
+						std::cout << "Delta_Y: " << abs(odometry_.y - camera_position.at<double>(1, 0)) << std::endl;
+						std::cout << "Delta_Z: " << abs(odometry_.z - camera_position.at<double>(2, 0)) << std::endl;
+
 						//cv::circle(cv_image, {tvec.at<double>(0, 0), tvec.at<double>(1, 0)}, 5, cv::Scalar(0, 255, 0), 2);
 						//cv::Point textOrg(tvec.at<double>(0, 0) + 10 , tvec.at<double>(1, 0) + 10);
 						// Форматируем координаты в строку
@@ -510,21 +527,6 @@ namespace uav_controller
 					// Добавляем задержку для корректного отображения
 					cv::waitKey(3); // Увеличиваем время ожидания*/
 
-					//	cv::aruco::estimatePoseSingleMarkers(corners, 0.3, cameraMatrix, distCoeffs, rvec, tvec);
-
-					//	double roll = rvec.at<double>(0);
-					//	double pitch = rvec.at<double>(1);
-					//		double yaw = rvec.at<double>(2);
-
-					//	std::cout << roll << std::endl;
-
-					// Преобразование rvec в матрицу вращения
-					// cv::Mat rotation_matrix;
-
-					// cv::Rodrigues(rvec, rotation_matrix);
-
-					// cam_Info.
-					//  Здесь можно добавить обработку координат маркеров
 				}
 				else
 				{

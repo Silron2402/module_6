@@ -13,6 +13,9 @@
 #include <opencv2/aruco.hpp>
 #include "cam_reader.hpp"
 #include "aruco_matrix.hpp"
+#include <nav_msgs/Odometry.h>
+#include <geometry_msgs/Point.h>
+
 
 // Обьявим класс для контроллера БЛА
 // этот класс включает методы для управления аппаратом
@@ -72,10 +75,12 @@ namespace uav_controller
 		ros::Publisher setPointPub_;		
 		ros::ServiceClient setModeClient_;
 		mavros_msgs::SetMode setModeName_;
-        ros::Subscriber cameraSub_;  // подписка на изображение с камеры;
-		ros::Subscriber cameraInfo_;  // подписка на данные о камере
-        //sensor_msgs::CameraInfo cam_Info;
-
+        ros::Subscriber cameraSub_;    // подписка на изображение с камеры;
+		ros::Subscriber cameraInfo_;   // подписка на данные о камере
+		ros::Subscriber odometrySub_;   // подписка на одометрию
+        geometry_msgs::Point odometry_;  // объект сообщения об одометрии
+		geometry_msgs::Quaternion orientation_;  // объект сообщения об ориентации по одометрии
+		
 		cv::Mat cv_image;  //изображение в формате OpenCV
         std::vector<int> ids;
 		std::vector<std::vector<cv::Point2f>> corners;
@@ -91,7 +96,7 @@ namespace uav_controller
 		void setPointTypeInit();
 		void uavStateCallback(const mavros_msgs::State::ConstPtr &msg);
 		void imageCallback(const sensor_msgs::ImageConstPtr& msg);
-		void cameraInfoCallback(const sensor_msgs::CameraInfoConstPtr& msg);
+		void odometryCallback(const nav_msgs::Odometry::ConstPtr& msg);
 		void realPositionCallback(const geometry_msgs::PoseStamped::ConstPtr &currentPoseLocal);
 		void offboard_enable(bool enable);
 		bool change_mode(const std::string &mode);

@@ -22,24 +22,17 @@ int main(int argc, char **argv)
 
     // создаем экземпляр класса системы управления БЛА
     uav_controller::UavController controller(n);
-    //Создаем экземпляр класса для получения параметров камеры
-    //CamReader cam(n);
-
-    //MarkerPosition marker(n);
-
-
+    
     //Выполним арминг дрона  
     controller.arm(true);
-    //marker.getMarkerMatrix();
-
-        
+      
 
     // Немного ждем пока сообщения начнут приходить на автопилот
     //ros::Rate rate(1.0);
     rate.sleep();
     
     //Зададим высоту взлета дрона
-    double target_altitude = 2.0;
+    double target_altitude = 2;
 
    //Выполним взлет дрона
     controller.do_takeoff(target_altitude);
@@ -51,20 +44,6 @@ int main(int argc, char **argv)
         // произойдет чтение сообщение из очереди и вызов callback
         ros::spinOnce();
         controller.run();
-        /*
-        // Получаем матрицу калибровки
-        cv::Mat matrix = cam.get_cameraMatrix();
-        // Получаем параметры дисторсии
-        std::vector<double> distVec = cam.get_distCoeff();
-        if (!matrix.empty())
-        {
-            ROS_INFO("Camera matrix received:");
-            std::cout << matrix << std::endl;
-            std::cout << distVec.at(0) << std::endl;
-            std::cout << distVec.at(1) << std::endl;
-            //ROS_INFO("%s", matrix.dump().c_str());
-        }
-            */
 
         // Получим текущие координаты дрона
         //controller.calculateAndSendSetpoint(); //.pose.position.x;

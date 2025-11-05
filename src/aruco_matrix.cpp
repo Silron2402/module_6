@@ -11,7 +11,7 @@
 
 // Конструктор класса
 MarkerPosition::MarkerPosition(ros::NodeHandle &n, const std::string &uavName)
-   : n_(n), uavName_(uavName)
+    : n_(n), uavName_(uavName)
 {
     //	rosNodeInit();
 }
@@ -41,11 +41,12 @@ std::map<int, std::vector<cv::Point3f>> MarkerPosition::getMarkerMatrix()
         // Обнаруживаем маркеры
         cv::aruco::detectMarkers(cv_image, dictionary, corners, ids);
         // Выводим результаты
-        for (size_t i = 0; i < ids.size(); ++i)
-        {
-            //std::cout << "Найден маркер ID: " << ids[i] << std::endl;
-            // std::cout << "Координаты углов: " << corners[i] << std::endl;
-        }
+        // for (size_t i = 0; i < ids.size(); ++i)
+        //{
+        // std::cout << "Найден маркер ID: " << ids[i] << std::endl;
+        // std::cout << "Координаты углов: " << corners[i] << std::endl;
+        //}
+
         // Поместим начало мировой СК в угол 0 маркера 99
         // Получим координаты вектора смещения МСК и начала координат доски
         point_0 = corners[99].at(0);
@@ -57,58 +58,75 @@ std::map<int, std::vector<cv::Point3f>> MarkerPosition::getMarkerMatrix()
         // совместим ось x рисунка с осью y МСК поэтому
         int delta_x_ = corners[99].at(2).y - x0_; // размер по оси y МСК
         int delta_y_ = corners[99].at(2).x - y0_; // размер по оси Х МСК
-        //std::cout << delta_x_ << std::endl;
-        //std::cout << delta_y_ << std::endl;
-        /*
-                //Расчитаем расстояние между маркерами в пикселях
-                int delta_ly_ = corners[98].at(0).x - corners[99].at(1).x;
-                int delta_lx_ = corners[89].at(0).y - corners[99].at(3).y;
-                std::cout << delta_lx_ << std::endl;
-                std::cout << delta_ly_ << std::endl;
-
-                cv::circle(cv_image, corners[98].at(0), 15, cv::Scalar(0, 0, 255), -1);
-                cv::circle(cv_image, corners[98].at(1), 15, cv::Scalar(0, 0, 255), -1);
-                cv::circle(cv_image, corners[98].at(2), 15, cv::Scalar(0, 0, 255), -1);
-                cv::circle(cv_image, corners[98].at(3), 15, cv::Scalar(0, 0, 255), -1);
-
-                cv::circle(cv_image, corners[99].at(0), 15, cv::Scalar(255, 0, 0), -1);
-                cv::circle(cv_image, corners[99].at(1), 15, cv::Scalar(255, 0, 0), -1);
-                cv::circle(cv_image, corners[99].at(2), 15, cv::Scalar(255, 0, 0), -1);
-                cv::circle(cv_image, corners[99].at(3), 15, cv::Scalar(255, 0, 0), -1);
-
-                std::cout <<  corners[97].at(0)   << std::endl;
-                std::cout <<  corners[97].at(1)   << std::endl;
-                std::cout <<  corners[97].at(2)   << std::endl;
-                std::cout <<  corners[97].at(3)   << std::endl;
-
-                std::cout <<  corners[98].at(0)   << std::endl;
-                std::cout <<  corners[98].at(1)   << std::endl;
-                std::cout <<  corners[98].at(2)   << std::endl;
-                std::cout <<  corners[98].at(3)   << std::endl;
-
-                std::cout <<  corners[99].at(0)   << std::endl;
-                std::cout <<  corners[99].at(1)   << std::endl;
-                std::cout <<  corners[99].at(2)   << std::endl;
-                std::cout <<  corners[99].at(3)   << std::endl;*/
+        // std::cout << delta_x_ << std::endl;
+        // std::cout << delta_y_ << std::endl;
 
         // Создаем словарь для 100 маркеров
         std::map<int, std::vector<cv::Point3f>> markers;
+
         for (size_t k = 0; k < corners.size(); k++)
         {
             markers[ids.at(k)] = std::vector<cv::Point3f>(4); // вектор, заполненный нулями
-            //std::cout << k << std::endl;
+            // std::cout << k << std::endl;
 
             // Заполняем матрицу известными координатами
-            // Примерные значения (нужно замерить реальные координаты)
             for (size_t i = 0; i < 4; i++)
             {
+                // координата х маркера
+
                 markers[ids.at(k)].at(i).x = (corners[k].at(i).y - x0_) * marker_length / delta_x_;
                 markers[ids.at(k)].at(i).y = (corners[k].at(i).x - y0_) * marker_length / delta_y_;
                 // markers[0].at(i).z = 0.0; не используется, т.к. доска расположена на плоскости
             }
-           // std::cout << markers[ids.at(k)] << std::endl;
-            //std::cout << ids.at(k) << std::endl;
+            // std::cout << markers[ids.at(k)] << std::endl;
+            // std::cout << ids.at(k) << std::endl;
         }
+
+        for (size_t i = 0; i < 10; i++)
+        {
+            for (size_t j = 0; j < 10; j++)
+            {
+                int pos = 99 - (10 * i + j);
+                std::cout << pos << std ::endl;
+                // создадим вектор из четырех элементов, заполненный нулями
+                markers[ids.at(pos)] = std::vector<cv::Point3f>(4);
+                for (size_t num_corner = 0; num_corner < 4; num_corner++)
+                {
+                    switch (num_corner)
+                    {
+                    case 1:
+                        markers[ids.at(pos)].at(num_corner).x = i * 1.0; //(corners[k].at(i).y - x0_) * marker_length / delta_x_;
+                        markers[ids.at(pos)].at(num_corner).y = j * 1.0 + 0.3;
+                        break;
+                    
+                    case 2:
+                        markers[ids.at(pos)].at(num_corner).x = i * 1.0 + 0.3; //(corners[k].at(i).y - x0_) * marker_length / delta_x_;
+                        markers[ids.at(pos)].at(num_corner).y = j * 1.0 + 0.3;
+                        break;
+                    
+                    case 3:
+                        markers[ids.at(pos)].at(num_corner).x = i * 1.0 + 0.3; //(corners[k].at(i).y - x0_) * marker_length / delta_x_;
+                        markers[ids.at(pos)].at(num_corner).y = j * 1.0;
+                        break;    
+                    
+                    default:
+                        markers[ids.at(pos)].at(num_corner).x = i * 1.0; //(corners[k].at(i).y - x0_) * marker_length / delta_x_;
+                        markers[ids.at(pos)].at(num_corner).y = j * 1.0;
+                        break;
+                    }
+
+/*
+                    {
+                        int  = 2 * k + m; // номер угла маркера
+                        std::cout << num_corner << std::endl;
+                        // Зададим координаты маркера
+                        markers[ids.at(pos)].at(num_corner).x = i * 1.0 + k * 0.3; //(corners[k].at(i).y - x0_) * marker_length / delta_x_;
+                        markers[ids.at(pos)].at(num_corner).y = j * 1.0 + m * 0.3;
+                    }*/
+                }
+            }
+        }
+
         return markers;
     }
     catch (cv_bridge::Exception &e)
