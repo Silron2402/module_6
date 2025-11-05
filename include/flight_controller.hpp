@@ -15,7 +15,7 @@
 #include "aruco_matrix.hpp"
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/Point.h>
-
+#include <geometry_msgs/TwistStamped.h>
 
 // Обьявим класс для контроллера БЛА
 // этот класс включает методы для управления аппаратом
@@ -72,7 +72,13 @@ namespace uav_controller
 		ros::Subscriber localPositionSub_;
 		ros::Subscriber desPoseSub_;
 		ros::Subscriber stateSub_;
-		ros::Publisher setPointPub_;		
+		ros::Publisher setPointPub_;	
+		ros::Publisher setPosePub_;  //паблишер для положения по данным с камеры
+		ros::Publisher setVelPub_;   //паблишер для скорости
+		
+		geometry_msgs::PoseStamped pose_msg;    //Объект сообщения для публиккации в топике mavros/vision
+		geometry_msgs::TwistStamped vel_msg;        //Объект сообщения для публикации скорости
+		
 		ros::ServiceClient setModeClient_;
 		mavros_msgs::SetMode setModeName_;
         ros::Subscriber cameraSub_;    // подписка на изображение с камеры;
@@ -80,7 +86,9 @@ namespace uav_controller
 		ros::Subscriber odometrySub_;   // подписка на одометрию
         geometry_msgs::Point odometry_;  // объект сообщения об одометрии
 		geometry_msgs::Quaternion orientation_;  // объект сообщения об ориентации по одометрии
-		
+        
+
+
 		cv::Mat cv_image;  //изображение в формате OpenCV
         std::vector<int> ids;
 		std::vector<std::vector<cv::Point2f>> corners;

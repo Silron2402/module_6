@@ -16,6 +16,7 @@
 #include "cam_reader.hpp"
 #include "image_getter.hpp"
 #include <geometry_msgs/Point.h>
+#include <geometry_msgs/TwistStamped.h>
 
 namespace uav_controller
 {
@@ -65,6 +66,13 @@ namespace uav_controller
 
 		// Инициализируем publisher для целевого состояния ЛА
 		setPointPub_ = n_.advertise<mavros_msgs::PositionTarget>("mavros/setpoint_raw/local", 10);
+
+		// Создаём publisher для публикации положения по данным камеры
+        setPosePub_ = n_.advertise<geometry_msgs::PoseStamped>("/mavros/vision_pose/pose", 10);
+
+		// Создаём publisher для публикации скорости
+        setVelPub_ = n_.advertise<geometry_msgs::TwistStamped>("/mavros/setpoint_velocity/cmd_vel", 10);
+
 	}
 
 	void UavController::uavStateCallback(const mavros_msgs::State::ConstPtr &msg)
@@ -136,16 +144,25 @@ namespace uav_controller
 		// double timeout = 1 / ascent_speed + 10.0; // установим таймаут исходя из скорости взлета с небольшим запасом
 		auto start_time = ros::Time::now();
 		bool altitude_reached = false;
-		ros::Rate rate(30);
+		ros::Rate rate(10);
 		bool result = false;
 		target_alt = target_altitude;
 		// ArucoVision vision(n_);
 		while (ros::ok() && !altitude_reached)
 		{
-			rate.sleep();
+			// run();
+			change_mode("OFFBOARD");
+			if (currentState_.mode == "OFFBOARD" && currentState_.armed)
+			{
+				ROS_INFO("Ready for OFFBOARD control!");
+			}
+			else
+			{
+				ROS_ERROR("Failed to enter OFFBOARD mode");
+			}
 			ros::spinOnce();
-			run();
-			takeoffSendSetpoint();
+			markers_w();
+			//takeoffSendSetpoint();
 
 			// vision.imageCallback
 			//  Проверим достижение заданной высоты с точностью в 10 см
@@ -165,6 +182,7 @@ namespace uav_controller
 							return false;
 							break;
 						}*/
+			rate.sleep();
 		}
 		return result;
 	}
@@ -335,9 +353,33 @@ namespace uav_controller
 		std::cout << "V_y = " << V_y1 << std::endl;
 		std::cout << "V_z = " << V_z1 << std::endl;
 		// std::cout << "fhfh " << setPoint_ << std::endl;
+       
+		
+		// Заполняем header
+        vel_msg.header.stamp = ros::Time::now();
+		vel_msg.header.frame_id = "base_link";  // Система координат дрона
+        //vel_msg.header.frame_id = "takeoff";  // или "vision", "camera"
+
+        // Заполняем позицию (пример: x=1.0, y=2.0, z=1.5)
+        vel_msg.twist.linear.x = V_x1;
+        vel_msg.twist.linear.y = V_y1;
+        vel_msg.twist.linear.z = V_z1;
+
+        // Заполняем ориентацию (кватернион)
+        vel_msg.twist.angular.x = 0;
+		vel_msg.twist.angular.y = 0;
+		vel_msg.twist.angular.z = yaw_rate;
+   
+        // Публикуем сообщение
+        setVelPub_.publish(vel_msg);
+
+        //ROS_INFO("Published pose: x=%.2f, y=%.2f, z=%.2f",
+        //         pose_msg.pose.position.x,
+        //         pose_msg.pose.position.y,
+        //         pose_msg.pose.position.z);
 
 		// отправка
-		setPointPub_.publish(setPoint_);
+        //setPointPub_.publish(setPoint_);
 	}
 
 	void UavController::setPointTypeInit()
@@ -370,6 +412,25 @@ namespace uav_controller
 
 		ros::ServiceClient client = n_.serviceClient<mavros_msgs::SetMode>("/mavros/set_mode");
 		return client.call(sm) && sm.response.mode_sent;
+
+		if (client.call(sm))
+		{
+			if (sm.response.mode_sent)
+			{
+				ROS_INFO("Mode changed to %s", mode.c_str());
+				return true;
+			}
+			else
+			{
+				ROS_ERROR("Failed to change mode to %s", mode.c_str());
+				return false;
+			}
+		}
+		else
+		{
+			ROS_ERROR("Service call failed for mode change");
+			return false;
+		}
 	}
 
 	// обработка маркеров
@@ -497,6 +558,27 @@ namespace uav_controller
                         std::cout << "Delta_X: " << abs(odometry_.x - camera_position.at<double>(0, 0)) << std::endl;
 						std::cout << "Delta_Y: " << abs(odometry_.y - camera_position.at<double>(1, 0)) << std::endl;
 						std::cout << "Delta_Z: " << abs(odometry_.z - camera_position.at<double>(2, 0)) << std::endl;
+                        
+						// Вывод результатов
+						// Заполняем header
+                        pose_msg.header.stamp = ros::Time::now();
+		                pose_msg.header.frame_id = "vision";  // Система координат дрона
+    
+                        // Заполняем позицию (пример: x=1.0, y=2.0, z=1.5)
+                        pose_msg.pose.position.x = camera_position.at<double>(0, 0);
+						pose_msg.pose.position.y = camera_position.at<double>(1, 0);
+						pose_msg.pose.position.z = camera_position.at<double>(2, 0);
+       
+                        // Заполняем ориентацию (кватернион)
+                        pose_msg.pose.orientation.w = 0;
+		                pose_msg.pose.orientation.x = 0;
+                 		pose_msg.pose.orientation.y = 0;
+						pose_msg.pose.orientation.z = 0;
+
+                        // Публикуем сообщение
+                        setPosePub_.publish(pose_msg);
+
+
 
 						//cv::circle(cv_image, {tvec.at<double>(0, 0), tvec.at<double>(1, 0)}, 5, cv::Scalar(0, 255, 0), 2);
 						//cv::Point textOrg(tvec.at<double>(0, 0) + 10 , tvec.at<double>(1, 0) + 10);
@@ -567,13 +649,15 @@ namespace uav_controller
 		// Ожидаем подключения к автопилоту
 		while (ros::ok() && !currentState_.connected)
 		{
+			offboard_enable(true);
+			change_mode("OFFBOARD");
 			ros::spinOnce();
 			ros::Rate rate(10);
 			rate.sleep();
 		}
 
 		// Запускаем режим offboard
-		offboard_enable(true);
+		
 		// do_takeoff(2.0); // Взлетаем на 2 метра....
 
 		// Методы для следования в точку и  посадки можно сделать по аналогии.
